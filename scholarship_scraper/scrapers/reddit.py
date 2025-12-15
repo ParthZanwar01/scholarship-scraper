@@ -125,9 +125,11 @@ class RedditScraper:
         if not scholarships:
             print("All mirrors failed. Returning curated external resources.")
             scholarships = [
-                Scholarship(title="FastWeb Scholarships", source_url="https://www.fastweb.com/", description="Leading scholarship search engine", platform="reddit", date_posted=datetime.now()),
-                Scholarship(title="Scholarships.com Directory", source_url="https://www.scholarships.com/", description="Huge directory of scholarships", platform="reddit", date_posted=datetime.now()),
-                 Scholarship(title="CareerOneStop (US Dept Labor)", source_url="https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx", description="Official government scholarship search", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="The Gates Scholarship", source_url="https://www.thegatesscholarship.org/scholarship", description="Highly competitive full scholarship for minority students", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="Coca-Cola Scholars Program", source_url="https://www.coca-colascholarsfoundation.org/apply/", description="Achievement-based scholarship awarded to graduating high school seniors", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="Jack Kent Cooke Foundation", source_url="https://www.jkcf.org/our-scholarships/", description="College Scholarship Program for high-achieving students with financial need", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="Dell Scholars", source_url="https://www.dellscholars.org/scholarship/", description="Scholarship and support program for students with financial need", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="Burger King Scholars", source_url="https://burgerking.scholarsos.com/information", description="Scholarships for high school seniors and employees", platform="reddit", date_posted=datetime.now()),
             ]
             
         return scholarships
