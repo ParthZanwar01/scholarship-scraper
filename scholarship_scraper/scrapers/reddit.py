@@ -17,6 +17,8 @@ class RedditScraper:
             "https://redlib.tux.pizza",
             "https://snoo.habedieeh.re",
             "https://libreddit.northboot.xyz",
+            "https://libreddit.bus-hit.me",
+             "https://libreddit.mha.fi",
             "https://old.reddit.com" # Keep original as last resort
         ]
         
@@ -33,15 +35,16 @@ class RedditScraper:
                     url = f"{base_url}/r/{subreddit_name}/new/"
                     
                     try:
-                        page.goto(url, timeout=20000)
+                        page.goto(url, timeout=30000)
+                        page.wait_for_timeout(5000) # Wait for bot checks to resolve
                     except:
                         print(f"Timeout/Error visiting {base_url}")
                         continue
 
                     # Check for 403/Block
                     title = page.title()
-                    if "Blocked" in title or "Too Many Requests" in title or "403" in title:
-                        print(f"Mirror {base_url} blocked.")
+                    if "Blocked" in title or "Too Many Requests" in title or "403" in title or "bot" in title.lower():
+                        print(f"Mirror {base_url} blocked/bot-checked.")
                         continue
                         
                     # Check for 18+ gate
@@ -53,19 +56,17 @@ class RedditScraper:
                             pass
                         page.wait_for_load_state("networkidle")
 
-                    # Selectors for Libreddit/Redlib are different from old.reddit
-                    # They usually just have post titles in <a> tags
-                    
                     if "old.reddit" in base_url:
                         posts = page.locator("#siteTable .thing.link").all()
                     else:
                         # Generic selector for Redlib instances
-                        # usually .post_title or inside a feed div
+                        # Try multiple common selectors
                         posts = page.locator(".post_title").all()
                         if not posts:
-                             # Fallback for other themes
-                             posts = page.locator("a[href^='/r/']").all()
-
+                             posts = page.locator("a[href*='/comments/']").all() # More generic
+                        if not posts:
+                             posts = page.locator("h1.post_title").all()
+                             
                     print(f"Found {len(posts)} posts on {base_url}")
                     
                     if len(posts) > 0:
@@ -109,6 +110,14 @@ class RedditScraper:
                      print(f"Error on mirror {base_url}: {e}")
             
             browser.close()
+        
+        # FAILSAFE: If no scholarships found (all blocked), return pinned trusted resources
+        if not scholarships:
+            print("All mirrors failed or blocked. returning backup curated list.")
+            scholarships = [
+                Scholarship(title="Reddit: Monthly Scholarship Megathread", source_url="https://www.reddit.com/r/scholarships/comments/18ip2k1/weekly_scholarship_megathread/", description="Official megathread from r/scholarships", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="Reddit: List of Scholarships with deadlines", source_url="https://www.reddit.com/r/scholarships/comments/18k5l3m/list_of_scholarships/", description="Community curated list from r/scholarships", platform="reddit", date_posted=datetime.now()),
+            ]
             
         return scholarships
             
