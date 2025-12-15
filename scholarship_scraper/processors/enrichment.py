@@ -9,15 +9,30 @@ class EnrichmentProcessor:
         self.headless = headless
 
     def extract_amount(self, text):
-        # Look for currency patterns like $10,000, $5000, 1000 USD
-        matches = re.findall(r'\$\s?[\d,]+(?:\.\d{2})?', text)
+        # Look for currency patterns like $10,000, $5000, 1000 USD, $2k
+        # More robust regex
+        text = text.replace(',', '') # Simplify numbers
+        matches = re.findall(r'\$\s?\d+(?:k)?', text.lower())
+        
+        # Also look for "10000 dollars"
+        matches_usd = re.findall(r'\d+\s?dollars', text.lower())
+        
+        amounts = []
         if matches:
-            # Return the largest amount found, assuming it's the max award
-            try:
-                values = [float(m.replace('$', '').replace(',', '')) for m in matches]
-                return f"${max(values):,.0f}"
-            except:
-                return matches[0]
+            for m in matches:
+                try:
+                    val = m.replace('$', '').strip()
+                    if 'k' in val:
+                        val = float(val.replace('k', '')) * 1000
+                    else:
+                        val = float(val)
+                    if val > 100: # Filter small numbers
+                        amounts.append(val)
+                except:
+                    pass
+                    
+        if amounts:
+            return f"${max(amounts):,.0f}"
         return None
 
     def extract_deadline(self, text):

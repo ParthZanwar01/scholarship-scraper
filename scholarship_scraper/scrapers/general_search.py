@@ -75,9 +75,12 @@ class GeneralSearchScraper:
         direct_urls = [
             "https://www.unigo.com/scholarships/our-scholarships",
             "https://www.scholarships.com/financial-aid/college-scholarships/scholarship-directory/age/age-17",
-            "https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx", # New
-            "https://www.niche.com/colleges/scholarships/", # New
-            "https://studentscholarships.org/scholarship.php" # New
+            "https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx",
+            "https://www.niche.com/colleges/scholarships/",
+            "https://studentscholarships.org/scholarship.php",
+            "https://bigfuture.collegeboard.org/pay-for-college/scholarship-search", # New
+            "https://www.cappex.com/scholarships", # New
+            "https://www.petersons.com/scholarship-search.aspx" # New
         ]
         
         found_urls = []
