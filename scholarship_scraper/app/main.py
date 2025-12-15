@@ -39,9 +39,10 @@ def trigger_instagram_scrape(hashtag: str = "scholarships", limit: int = 5):
     return {"message": "Instagram scrape triggered", "task_id": str(task.id)}
 
 @app.post("/scrape/reddit")
-def trigger_reddit_scrape(subreddit: str = "scholarships", limit: int = 5):
-    task = run_reddit_scrape.delay(subreddit, limit)
-    return {"message": "Reddit scrape triggered", "task_id": str(task.id)}
+def trigger_reddit_scrape(limit: int = 20):
+    # Task now self-manages subreddits
+    task = run_reddit_scrape.delay(limit=limit)
+    return {"message": "Reddit scrape triggered (Multi-Subreddit)", "task_id": str(task.id)}
 
 @app.delete("/scrape/reddit")
 def clear_reddit_data():
