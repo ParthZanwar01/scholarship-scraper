@@ -48,7 +48,11 @@ class GeneralSearchScraper:
             
             except Exception as e:
                 print(f"DuckDuckGo search failed ({e}), failing over to Bing...")
-                found_urls = self.search_bing_fallback(page, query, num_results)
+                try:
+                    found_urls = self.search_bing_fallback(page, query, num_results)
+                except:
+                    print("Bing also failed. Failing over to Direct Sites...")
+                    found_urls = self.search_direct_fallback(page)
             
             print(f"Found {len(found_urls)} URLs.")
 
@@ -65,6 +69,18 @@ class GeneralSearchScraper:
 
             browser.close()
         return results
+
+    def search_direct_fallback(self, page):
+        # List of friendly scholarship sites to scrape directly
+        # focused on aggregators that might list multiple
+        urls = [
+            # CareerOneStop (US Dept of Labor) - usually bot friendly
+            "https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx",
+            # Simple list sites
+            "https://www.scholarships.com/financial-aid/college-scholarships/scholarship-directory",
+            "https://www.unigo.com/scholarships/our-scholarships"
+        ]
+        return urls
 
     def search_bing_fallback(self, page, query, num_results):
         try:
