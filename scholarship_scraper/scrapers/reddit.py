@@ -1,4 +1,4 @@
-import asyncpraw
+from playwright.sync_api import sync_playwright
 import os
 from datetime import datetime
 from scholarship_scraper.models.scholarship import Scholarship
