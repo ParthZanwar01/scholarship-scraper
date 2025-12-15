@@ -22,10 +22,18 @@ class GeneralSearchScraper:
             # Search
             page.fill('input[name="q"]', query)
             page.press('input[name="q"]', "Enter")
-            page.wait_for_selector(".result__a")
+            
+            # Wait for results container (more robust)
+            try:
+                page.wait_for_selector(".result", timeout=10000)
+            except:
+                print("DuckDuckGo results not found by selector '.result', dumping content for debug if local...")
 
-            # Extract links
-            links = page.locator(".result__a").all()
+            # Extract links - simpler strategy finding all links in results
+            links = page.locator(".result a.result__a").all()
+            if not links:
+                 # Fallback for different HTML structure
+                 links = page.locator(".result .result__title").all()
             found_urls = []
             for link in links:
                 url = link.get_attribute("href")
