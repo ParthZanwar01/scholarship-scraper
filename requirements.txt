@@ -1,0 +1,17 @@
+playwright
+beautifulsoup4
+pandas
+requests
+pytesseract
+pillow
+instaloader
+openpyxl
+lxml
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+celery
+redis
+python-dotenv
+asyncpraw
