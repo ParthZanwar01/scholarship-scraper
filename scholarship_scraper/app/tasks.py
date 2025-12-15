@@ -99,17 +99,24 @@ def run_instagram_scrape(hashtag="scholarships", limit=5):
     return f"Instagram Scrape Complete. Saved {count} new scholarships."
 
 @celery_app.task
-def run_reddit_scrape(subreddit="scholarships", limit=10):
+def run_reddit_scrape(limit=20): # Increased limit and removed single subreddit arg
     from scholarship_scraper.scrapers.reddit import RedditScraper
     
-    print(f"Starting Reddit Scrape: r/{subreddit}")
-    scraper = RedditScraper()
-    results = scraper.scrape_subreddit(subreddit, limit=limit)
+    # Expand search to multiple relevant subreddits
+    subreddits = ["scholarships", "college", "financialaid", "studentloans", "ApplyingToCollege"]
     
-    count = 0
-    for item in results:
-        if save_scholarship_to_db(item):
-            count += 1
+    total_new = 0
+    scraper = RedditScraper()
+    
+    for sub in subreddits:
+        print(f"Starting Reddit Scrape: r/{sub}")
+        try:
+            results = scraper.scrape_subreddit(sub, limit=limit)
+            for item in results:
+                if save_scholarship_to_db(item):
+                    total_new += 1
+        except Exception as e:
+            print(f"Failed to scrape r/{sub}: {e}")
             
-    return f"Reddit Scrape Complete. Saved {count} new scholarships."
+    return f"Multi-Reddit Scrape Complete. Saved {total_new} new scholarships from {subreddits}."
 
