@@ -14,7 +14,9 @@ class GeneralSearchScraper:
         results = []
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=self.headless)
-            page = browser.new_page()
+            # Use a real user agent to avoid detection/different layouts
+            context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            page = context.new_page()
             
             # Navigate to DuckDuckGo (HTML version is lighter/faster/less bot-detected)
             page.goto("https://html.duckduckgo.com/html/")
@@ -93,5 +95,5 @@ class GeneralSearchScraper:
 
 if __name__ == "__main__":
     scraper = GeneralSearchScraper(headless=False)
-    data = scraper.search_google("computer science scholarships 2024", num_results=3)
+    data = scraper.search_duckduckgo("computer science scholarships 2024", num_results=3)
     print(data)
