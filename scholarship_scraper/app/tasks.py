@@ -69,7 +69,7 @@ def save_scholarship_to_db(scholarship_obj):
 def run_general_scrape(query="scholarships 2024", limit=10):
     print(f"Starting General Scrape: {query}")
     scraper = GeneralSearchScraper(headless=True)
-    results = scraper.search_google(query, num_results=limit)
+    results = scraper.search_duckduckgo(query, num_results=limit)
     
     count = 0
     for item in results:

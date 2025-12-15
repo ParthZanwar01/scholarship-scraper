@@ -9,48 +9,42 @@ class GeneralSearchScraper:
     def __init__(self, headless=True):
         self.headless = headless
 
-    def search_google(self, query: str, num_results: int = 10):
+    def search_duckduckgo(self, query: str, num_results: int = 10):
+        print(f"Adding Social Media context to query: {query}")
         results = []
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=self.headless)
             page = browser.new_page()
             
-            # Navigate to Google
-            page.goto("https://www.google.com")
+            # Navigate to DuckDuckGo (HTML version is lighter/faster/less bot-detected)
+            page.goto("https://html.duckduckgo.com/html/")
             
-            # Handle potential cookie consent (basic/common selectors)
-            # This is highly variable by region, simplified for now
-            try:
-                page.locator("button:has-text('Accept all')").click(timeout=2000)
-            except:
-                pass
-
             # Search
-            page.fill('textarea[name="q"]', query)
-            page.press('textarea[name="q"]', "Enter")
-            page.wait_for_selector("#search")
+            page.fill('input[name="q"]', query)
+            page.press('input[name="q"]', "Enter")
+            page.wait_for_selector(".result__a")
 
             # Extract links
-            links = page.locator("#search .g a").all()
+            links = page.locator(".result__a").all()
             found_urls = []
             for link in links:
                 url = link.get_attribute("href")
-                if url and "http" in url and "google" not in url:
+                # Filter out ads and internal links
+                if url and "http" in url and "duckduckgo" not in url:
                     found_urls.append(url)
                     if len(found_urls) >= num_results:
                         break
             
-            print(f"Found {len(found_urls)} URLs to scrape.")
+            print(f"Found {len(found_urls)} URLs via DuckDuckGo.")
 
             for url in found_urls:
                 print(f"Scraping: {url}")
                 try:
                     # Visit each page to get details
-                    # A new page/context might be safer to prevent detection cross-contamination
                     scholarship = self.scrape_page(page, url) 
                     if scholarship:
                         results.append(scholarship)
-                    time.sleep(random.uniform(1, 3)) # Polite delay
+                    time.sleep(random.uniform(1, 3)) 
                 except Exception as e:
                     print(f"Failed to scrape {url}: {e}")
 
