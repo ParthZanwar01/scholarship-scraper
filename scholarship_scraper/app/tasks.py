@@ -14,17 +14,20 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("scholarship_tasks", broker=REDIS_URL, backend=REDIS_URL)
 
 celery_app.conf.beat_schedule = {
-    "scrape-google-every-6-hours": {
-        "task": "app.tasks.run_general_scrape",
-        "schedule": crontab(minute=0, hour="*/6"),
+    "scrape-general-5min": {
+        "task": "scholarship_scraper.app.tasks.run_general_scrape",
+        "schedule": crontab(minute="*/5"),
+        "options": {"expires": 290} # Expire if queue is backed up
     },
-    "scrape-instagram-every-6-hours": {
-        "task": "app.tasks.run_instagram_scrape",
-        "schedule": crontab(minute=30, hour="*/6"),
+    "scrape-reddit-5min": {
+        "task": "scholarship_scraper.app.tasks.run_reddit_scrape",
+        "schedule": crontab(minute="*/5"),
+        "options": {"expires": 290}
     },
-    "scrape-reddit-every-12-hours": {
-        "task": "app.tasks.run_reddit_scrape",
-        "schedule": crontab(minute=45, hour="*/12"),
+    # Keep Instagram less frequent as it is fragile/security-heavy
+    "scrape-instagram-hourly": {
+        "task": "scholarship_scraper.app.tasks.run_instagram_scrape",
+        "schedule": crontab(minute=15, hour="*/1"),
     },
 }
 
