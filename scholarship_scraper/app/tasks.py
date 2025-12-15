@@ -24,6 +24,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/5"),
         "options": {"expires": 290}
     },
+    # Deep Research / Enrichment Task (Every 10 mins)
+    "enrich-scholarships-10min": {
+        "task": "scholarship_scraper.app.tasks.run_enrichment_task",
+        "schedule": crontab(minute="*/10"),
+    },
     # Keep Instagram less frequent as it is fragile/security-heavy
     "scrape-instagram-hourly": {
         "task": "scholarship_scraper.app.tasks.run_instagram_scrape",
@@ -137,4 +142,55 @@ def run_reddit_scrape(limit=20): # Increased limit and removed single subreddit 
             print(f"Failed to scrape r/{sub}: {e}")
             
     return f"Multi-Reddit Scrape Complete. Saved {total_new} new scholarships from {subreddits}."
+
+@celery_app.task
+def run_enrichment_task(limit=5):
+    from scholarship_scraper.processors.enrichment import EnrichmentProcessor
+    db = SessionLocal()
+    updater = EnrichmentProcessor()
+    
+    try:
+        # Find candidates needing enrichment (Rule: missing amount OR deadline, and hasn't been enriched yet)
+        # Note: We don't have an 'enriched' flag yet, so we just check for nulls.
+        # Ideally we should add a flag, but for now we'll process those with nulls.
+        # To avoid infinite loops on failed ones, we'd need a flag or 'last_checked'. 
+        # For this MVP, we will pick 5 random ones with NULL amount to try to improve them.
+        import random
+        candidates = db.query(ScholarshipModel).filter(ScholarshipModel.amount == None).all()
+        
+        if not candidates:
+            return "No candidates for enrichment."
+            
+        # Shuffle to avoid getting stuck on same failed ones
+        selection = random.sample(candidates, min(len(candidates), limit))
+        
+        count = 0
+        for sch in selection:
+            res = updater.enrich_url(sch.source_url)
+            
+            updated = False
+            if res.get('amount') and sch.amount is None:
+                sch.amount = res['amount']
+                updated = True
+                
+            if res.get('deadline') and sch.deadline is None:
+                sch.deadline = res['deadline']
+                updated = True
+            
+            # Append full text description if current is short
+            if res.get('full_text') and (not sch.description or len(sch.description) < 100):
+                sch.description = (res['full_text'][:500] + "...")
+                updated = True
+
+            if updated:
+                db.commit()
+                count += 1
+                
+        return f"Enrichment Complete. Updated details for {count} scholarships."
+        
+    except Exception as e:
+        db.rollback()
+        return f"Enrichment Error: {e}"
+    finally:
+        db.close()
 
