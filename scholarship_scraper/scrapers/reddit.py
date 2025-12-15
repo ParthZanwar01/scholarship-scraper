@@ -10,16 +10,18 @@ class RedditScraper:
         self.headless = headless
 
     def scrape_subreddit(self, subreddit_name="scholarships", limit=10):
-        # List of Redlib/Libreddit instances to try
+        # Extensive list of Redlib/Libreddit instances to try
         mirrors = [
+            "https://libreddit.bus-hit.me",
+            "https://libreddit.kylrth.com",
+            "https://libreddit.lunar.icu",
+            "https://libreddit.pussthecat.org",
             "https://redlib.catsarch.com",
             "https://libreddit.offer.space.tr",
             "https://redlib.tux.pizza",
-            "https://snoo.habedieeh.re",
-            "https://libreddit.northboot.xyz",
-            "https://libreddit.bus-hit.me",
-             "https://libreddit.mha.fi",
-            "https://old.reddit.com" # Keep original as last resort
+             "https://libreddit.northboot.xyz",
+            "https://libreddit.mha.fi",
+            "https://old.reddit.com"
         ]
         
         scholarships = []
@@ -35,15 +37,15 @@ class RedditScraper:
                     url = f"{base_url}/r/{subreddit_name}/new/"
                     
                     try:
-                        page.goto(url, timeout=30000)
-                        page.wait_for_timeout(5000) # Wait for bot checks to resolve
+                        page.goto(url, timeout=20000)
+                        page.wait_for_timeout(3000)
                     except:
                         print(f"Timeout/Error visiting {base_url}")
                         continue
 
                     # Check for 403/Block
                     title = page.title()
-                    if "Blocked" in title or "Too Many Requests" in title or "403" in title or "bot" in title.lower():
+                    if "Blocked" in title or "Access Denied" in title or "403" in title or "bot" in title.lower():
                         print(f"Mirror {base_url} blocked/bot-checked.")
                         continue
                         
@@ -68,61 +70,69 @@ class RedditScraper:
                              posts = page.locator("h1.post_title").all()
                              
                     print(f"Found {len(posts)} posts on {base_url}")
-                    
+
+                    valid_count = 0
                     if len(posts) > 0:
-                        count = 0
                         for post in posts:
                             try:
                                 title_text = post.inner_text().strip()
                                 href = post.get_attribute("href")
                                 
-                                # Skip invalid or empty results
                                 if not title_text or not href:
                                     continue
                                 
-                                # Fix relative URL
+                                # FILTER: Only External Links
+                                is_external = False
+                                full_url = href
+                                
                                 if href.startswith("/"):
-                                    full_url = base_url + href
+                                    # Internal Reddit Link -> SKIP (User request)
+                                    continue
+                                elif "reddit.com" in href or "libreddit" in href or "redlib" in href:
+                                     # Explicit internal link -> SKIP
+                                     continue
                                 else:
+                                    # External Link! (http://scholarship-site.com...)
+                                    is_external = True
                                     full_url = href
 
-                                if "scholarship" in title_text.lower() or "grant" in title_text.lower() or "fund" in title_text.lower():
+                                if is_external and ("scholarship" in title_text.lower() or "grant" in title_text.lower() or "fund" in title_text.lower()):
                                     scholarship = Scholarship(
                                         title=f"Reddit: {title_text}",
                                         source_url=full_url,
-                                        description=title_text,
+                                        description=f"External Link found on Reddit: {title_text}",
                                         amount=None,
                                         platform="reddit",
                                         date_posted=datetime.now()
                                     )
                                     scholarships.append(scholarship)
-                                    count += 1
-                                    if count >= limit:
+                                    valid_count += 1
+                                    if valid_count >= limit:
                                         break
                             except:
                                 continue
                         
                         if scholarships:
-                            print(f"Successfully scraped {len(scholarships)} from {base_url}")
-                            break # Found data, stop iterating mirrors
+                            print(f"Successfully scraped {len(scholarships)} external links from {base_url}")
+                            break 
                             
                 except Exception as e:
                      print(f"Error on mirror {base_url}: {e}")
             
             browser.close()
         
-        # FAILSAFE: If no scholarships found (all blocked), return pinned trusted resources
+        # FAILSAFE: Return curated EXTERNAL links if scrape fails
         if not scholarships:
-            print("All mirrors failed or blocked. returning backup curated list.")
+            print("All mirrors failed. Returning curated external resources.")
             scholarships = [
-                Scholarship(title="Reddit: Monthly Scholarship Megathread", source_url="https://www.reddit.com/r/scholarships/comments/18ip2k1/weekly_scholarship_megathread/", description="Official megathread from r/scholarships", platform="reddit", date_posted=datetime.now()),
-                Scholarship(title="Reddit: List of Scholarships with deadlines", source_url="https://www.reddit.com/r/scholarships/comments/18k5l3m/list_of_scholarships/", description="Community curated list from r/scholarships", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="FastWeb Scholarships", source_url="https://www.fastweb.com/", description="Leading scholarship search engine", platform="reddit", date_posted=datetime.now()),
+                Scholarship(title="Scholarships.com Directory", source_url="https://www.scholarships.com/", description="Huge directory of scholarships", platform="reddit", date_posted=datetime.now()),
+                 Scholarship(title="CareerOneStop (US Dept Labor)", source_url="https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx", description="Official government scholarship search", platform="reddit", date_posted=datetime.now()),
             ]
             
         return scholarships
             
         print(f"Extracted {len(scholarships)} scholarships from r/{subreddit_name}")
-        return scholarships
 
 if __name__ == "__main__":
     # Test
