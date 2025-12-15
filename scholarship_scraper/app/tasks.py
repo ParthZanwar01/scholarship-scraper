@@ -69,7 +69,25 @@ def save_scholarship_to_db(scholarship_obj):
         db.close()
 
 @celery_app.task
-def run_general_scrape(query="scholarships 2024", limit=10):
+def run_general_scrape(query=None, limit=10):
+    import random
+    
+    # Diverse query pool
+    queries = [
+        "scholarships 2025",
+        "engineering scholarships",
+        "nursing scholarships",
+        "scholarships for women",
+        "minority scholarships",
+        "financial aid grants",
+        "computer science scholarships",
+        "scholarships for high school seniors",
+        "undergraduate scholarships"
+    ]
+    
+    if not query:
+        query = random.choice(queries)
+        
     print(f"Starting General Scrape: {query}")
     scraper = GeneralSearchScraper(headless=True)
     results = scraper.search_duckduckgo(query, num_results=limit)
