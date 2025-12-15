@@ -18,34 +18,39 @@ class GeneralSearchScraper:
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             page = context.new_page()
             
-            # Navigate to DuckDuckGo (HTML version is lighter/faster/less bot-detected)
-            page.goto("https://html.duckduckgo.com/html/")
-            
-            # Search
-            page.fill('input[name="q"]', query)
-            page.press('input[name="q"]', "Enter")
-            
-            # Wait for results container (more robust)
             try:
-                page.wait_for_selector(".result", timeout=10000)
-            except:
-                print("DuckDuckGo results not found by selector '.result', dumping content for debug if local...")
+                # Navigate to DuckDuckGo (HTML version is lighter/faster/less bot-detected)
+                page.goto("https://html.duckduckgo.com/html/", timeout=60000)
+                
+                # Search
+                page.fill('input[name="q"]', query, timeout=30000)
+                page.press('input[name="q"]', "Enter")
+                
+                # Wait for results container (more robust)
+                try:
+                    page.wait_for_selector(".result", timeout=10000)
+                except:
+                    print("DuckDuckGo results not found by selector '.result', dumping content for debug if local...")
 
-            # Extract links - simpler strategy finding all links in results
-            links = page.locator(".result a.result__a").all()
-            if not links:
-                 # Fallback for different HTML structure
-                 links = page.locator(".result .result__title").all()
-            found_urls = []
-            for link in links:
-                url = link.get_attribute("href")
-                # Filter out ads and internal links
-                if url and "http" in url and "duckduckgo" not in url:
-                    found_urls.append(url)
-                    if len(found_urls) >= num_results:
-                        break
+                # Extract links - simpler strategy finding all links in results
+                links = page.locator(".result a.result__a").all()
+                if not links:
+                     # Fallback for different HTML structure
+                     links = page.locator(".result .result__title").all()
+                found_urls = []
+                for link in links:
+                    url = link.get_attribute("href")
+                    # Filter out ads and internal links
+                    if url and "http" in url and "duckduckgo" not in url:
+                        found_urls.append(url)
+                        if len(found_urls) >= num_results:
+                            break
             
-            print(f"Found {len(found_urls)} URLs via DuckDuckGo.")
+            except Exception as e:
+                print(f"DuckDuckGo search failed ({e}), failing over to Bing...")
+                found_urls = self.search_bing_fallback(page, query, num_results)
+            
+            print(f"Found {len(found_urls)} URLs.")
 
             for url in found_urls:
                 print(f"Scraping: {url}")
@@ -60,6 +65,30 @@ class GeneralSearchScraper:
 
             browser.close()
         return results
+
+    def search_bing_fallback(self, page, query, num_results):
+        try:
+            print("Attempting search via Bing...")
+            page.goto("https://www.bing.com", timeout=60000)
+            
+            # Simple Bing search
+            page.fill('input[name="q"]', query)
+            page.press('input[name="q"]', "Enter")
+            page.wait_for_selector("ol#b_results")
+            
+            links = page.locator("ol#b_results li.b_algo h2 a").all()
+            
+            urls = []
+            for link in links:
+                url = link.get_attribute("href")
+                if url:
+                    urls.append(url)
+                    if len(urls) >= num_results:
+                        break
+            return urls
+        except Exception as e:
+            print(f"Bing Fallback failed: {e}")
+            return []
 
     def scrape_page(self, page, url):
         try:
