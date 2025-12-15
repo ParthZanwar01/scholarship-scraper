@@ -42,3 +42,18 @@ def trigger_instagram_scrape(hashtag: str = "scholarships", limit: int = 5):
 def trigger_reddit_scrape(subreddit: str = "scholarships", limit: int = 5):
     task = run_reddit_scrape.delay(subreddit, limit)
     return {"message": "Reddit scrape triggered", "task_id": str(task.id)}
+
+@app.delete("/scrape/reddit")
+def clear_reddit_data():
+    from scholarship_scraper.app.database import SessionLocal
+    from scholarship_scraper.app.models import ScholarshipModel
+    db = SessionLocal()
+    try:
+        count = db.query(ScholarshipModel).filter(ScholarshipModel.platform == 'reddit').delete()
+        db.commit()
+        return {"message": f"Deleted {count} Reddit entries"}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
