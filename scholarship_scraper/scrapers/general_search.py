@@ -71,16 +71,49 @@ class GeneralSearchScraper:
         return results
 
     def search_direct_fallback(self, page):
-        # List of friendly scholarship sites to scrape directly
-        # focused on aggregators that might list multiple
-        urls = [
-            # CareerOneStop (US Dept of Labor) - usually bot friendly
-            "https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx",
-            # Simple list sites
-            "https://www.scholarships.com/financial-aid/college-scholarships/scholarship-directory",
-            "https://www.unigo.com/scholarships/our-scholarships"
+        # Visit lists that contain actual scholarships, not just categories
+        sources = [
+            "https://www.unigo.com/scholarships/our-scholarships",
+            "https://www.scholarships.com/financial-aid/college-scholarships/scholarship-directory/age/age-17"
         ]
-        return urls
+        
+        deep_urls = []
+        for source in sources:
+            try:
+                print(f"Direct Scraping Source: {source}")
+                page.goto(source, timeout=60000)
+                
+                # Unigo specific extraction
+                if "unigo.com" in source:
+                    # Unigo lists scholarships in tiles. Links usually contain the scholarship name.
+                    # Exclude common nav links
+                    links = page.locator("a").all()
+                    for link in links:
+                        href = link.get_attribute("href")
+                        if href and "/scholarships/our-scholarships/" in href and len(href.split("/")) > 4:
+                            # It's a specific scholarship page
+                            full_url = "https://www.unigo.com" + href if href.startswith("/") else href
+                            deep_urls.append(full_url)
+
+                # Scholarships.com specific extraction
+                elif "scholarships.com" in source:
+                     # Usually in a list table or UL
+                     links = page.locator("ul li a").all()
+                     for link in links:
+                         href = link.get_attribute("href")
+                         if href and "/financial-aid/college-scholarships/scholarship-directory/" in href and not href.endswith("scholarship-directory"):
+                             # If it looks like a detail page or category, we might accept it for now
+                             # But let's try to be specific.
+                             # Actually scholarships.com is nested. Let's try to get content links.
+                             full_url = "https://www.scholarships.com" + href if href.startswith("/") else href
+                             deep_urls.append(full_url)
+            except Exception as e:
+                print(f"Error crawling {source}: {e}")
+        
+        # Deduplicate
+        deep_urls = list(set(deep_urls))
+        # Limit to avoid overloading
+        return deep_urls[:10]
 
     def search_bing_fallback(self, page, query, num_results):
         try:
