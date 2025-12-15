@@ -97,13 +97,11 @@ def run_instagram_scrape(hashtag="scholarships", limit=5):
 
 @celery_app.task
 def run_reddit_scrape(subreddit="scholarships", limit=10):
-    import asyncio
     from scholarship_scraper.scrapers.reddit import RedditScraper
     
-    print(f"Starting Reddit Scrape: {subreddit}")
+    print(f"Starting Reddit Scrape: r/{subreddit}")
     scraper = RedditScraper()
-    # Run async in sync celery task
-    results = asyncio.run(scraper.scrape_subreddit(subreddit, limit))
+    results = scraper.scrape_subreddit(subreddit, limit=limit)
     
     count = 0
     for item in results:
@@ -111,3 +109,4 @@ def run_reddit_scrape(subreddit="scholarships", limit=10):
             count += 1
             
     return f"Reddit Scrape Complete. Saved {count} new scholarships."
+

@@ -5,46 +5,70 @@ from scholarship_scraper.models.scholarship import Scholarship
 import asyncio
 
 class RedditScraper:
-    def __init__(self, client_id=None, client_secret=None, user_agent="scholarship_scraper:v1.0"):
-        self.client_id = client_id or os.getenv("REDDIT_CLIENT_ID")
-        self.client_secret = client_secret or os.getenv("REDDIT_CLIENT_SECRET")
-        self.user_agent = user_agent
+    def __init__(self, client_id=None, client_secret=None, user_agent="Mozilla/5.0"):
+        # We ignore client_id/secret as we are using web scraping now
+        self.headless = True
 
-    async def scrape_subreddit(self, subreddit_name="scholarships", limit=10):
-        if not self.client_id or not self.client_secret:
-            print("Reddit API credentials missing.")
-            return []
-
-        results = []
-        try:
-            reddit = asyncpraw.Reddit(
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-                user_agent=self.user_agent
-            )
+    def scrape_subreddit(self, subreddit_name="scholarships", limit=10):
+        print(f"Scraping r/{subreddit_name} via old.reddit.com...")
+        scholarships = []
+        
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=self.headless)
+            context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            page = context.new_page()
             
-            subreddit = await reddit.subreddit(subreddit_name)
-            async for submission in subreddit.hot(limit=limit):
-                title = submission.title
-                text = submission.selftext
-                url = submission.url
+            try:
+                url = f"https://old.reddit.com/r/{subreddit_name}/new/"
+                page.goto(url, timeout=60000)
                 
-                # Check if it's likely a scholarship 
-                if "scholarship" in title.lower() or "grant" in title.lower() or "fund" in title.lower():
-                     scholarship = Scholarship(
-                        title=f"[Reddit] {title}",
-                        source_url=f"https://www.reddit.com{submission.permalink}",
-                        description=text[:500] + "...",
-                        platform="reddit",
-                        date_posted=datetime.fromtimestamp(submission.created_utc)
-                    )
-                     results.append(scholarship)
+                # Check for 18+ gate
+                if "over18" in page.url:
+                    page.click("button[name='over18'][value='yes']")
+                    page.wait_for_load_state("networkidle")
+
+                # specific selectors for old.reddit
+                posts = page.locator("#siteTable .thing.link").all()
+                
+                print(f"Found {len(posts)} posts on r/{subreddit_name}")
+                
+                for post in posts[:limit]:
+                    try:
+                        title = post.locator("a.title").first.inner_text()
+                        link = post.locator("a.title").first.get_attribute("href")
+                        
+                        # Handle relative links
+                        if link.startswith("/"):
+                            link = "https://old.reddit.com" + link
+                            
+                        # Extract date
+                        time_element = post.locator("time").first
+                        date_posted = datetime.now() # Fallback
+                        if time_element.count() > 0:
+                            timestamp = time_element.get_attribute("datetime")
+                            # Simple parse if needed, or just use now
+                        
+                        # Heuristic: Filter for scholarship-like titles
+                        if "scholarship" in title.lower() or "grant" in title.lower() or "fund" in title.lower():
+                             scholarship = Scholarship(
+                                title=f"Reddit: {title}",
+                                source_url=link,
+                                description=title, # Reddit titles are descriptive
+                                amount=None, # Hard to extract reliable amount from title
+                                platform="reddit",
+                                date_posted=date_posted
+                            )
+                             scholarships.append(scholarship)
+                    except Exception as e:
+                        print(f"Error parsing post: {e}")
+                        
+            except Exception as e:
+                print(f"Failed to scrape r/{subreddit_name}: {e}")
             
-            await reddit.close()
-        except Exception as e:
-            print(f"Reddit Scraping Error: {e}")
+            browser.close()
             
-        return results
+        print(f"Extracted {len(scholarships)} scholarships from r/{subreddit_name}")
+        return scholarships
 
 if __name__ == "__main__":
     # Test
