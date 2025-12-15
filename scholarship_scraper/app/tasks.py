@@ -81,7 +81,11 @@ def run_general_scrape(query="scholarships 2024", limit=10):
 @celery_app.task
 def run_instagram_scrape(hashtag="scholarships", limit=5):
     print(f"Starting Instagram Scrape: {hashtag}")
-    scraper = InstagramScraper(headless=True)
+    
+    username = os.getenv("INSTAGRAM_USERNAME")
+    password = os.getenv("INSTAGRAM_PASSWORD")
+    
+    scraper = InstagramScraper(username=username, password=password, headless=True)
     results = scraper.scrape_hashtag(hashtag, num_posts=limit)
     
     count = 0

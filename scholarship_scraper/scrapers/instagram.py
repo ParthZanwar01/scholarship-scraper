@@ -6,11 +6,20 @@ import os
 from datetime import datetime
 
 class InstagramScraper:
-    def __init__(self, headless=True):
+    def __init__(self, username=None, password=None, headless=True):
         self.L = instaloader.Instaloader()
         # Create download dir if needed, though instaloader handles its own
         self.download_dir = "downloads/instagram_images"
         os.makedirs(self.download_dir, exist_ok=True)
+        
+        if username and password:
+            try:
+                print(f"Attempting login for {username}...")
+                self.L.login(username, password)
+                print("Login successful!")
+            except Exception as e:
+                print(f"Login failed: {e}")
+                print("Proceeding without login (rate limits will be tighter).")
 
     def scrape_hashtag(self, hashtag: str, num_posts: int = 5):
         print(f"Scraping Instagram hashtag: #{hashtag} using Instaloader...")
