@@ -10,7 +10,16 @@ class RedditScraper:
         self.headless = headless
 
     def scrape_subreddit(self, subreddit_name="scholarships", limit=10):
-        print(f"Scraping r/{subreddit_name} via old.reddit.com...")
+        # List of Redlib/Libreddit instances to try
+        mirrors = [
+            "https://redlib.catsarch.com",
+            "https://libreddit.offer.space.tr",
+            "https://redlib.tux.pizza",
+            "https://snoo.habedieeh.re",
+            "https://libreddit.northboot.xyz",
+            "https://old.reddit.com" # Keep original as last resort
+        ]
+        
         scholarships = []
         
         with sync_playwright() as p:
@@ -18,64 +27,90 @@ class RedditScraper:
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             page = context.new_page()
             
-            try:
-                url = f"https://old.reddit.com/r/{subreddit_name}/new/"
-                page.goto(url, timeout=60000)
-                
-                # Check for 18+ gate
-                if "over18" in page.url:
-                    page.click("button[name='over18'][value='yes']")
-                    page.wait_for_load_state("networkidle")
-
-                # specific selectors for old.reddit
-                posts = page.locator("#siteTable .thing.link").all()
-                
-                print(f"Found {len(posts)} posts on r/{subreddit_name}")
-
-                if not posts:
-                    print(f"DEBUG: Title: {page.title()}")
-                    print(f"DEBUG: URL: {page.url}")
-                    # print(f"DEBUG: Content excerpt: {page.content()[:500]}") # Too noisy for logs? Maybe just title is enough.
-                    content = page.content()
-                    if "Blocked" in content or "Too Many Requests" in content:
-                        print("DEBUG: Potentially blocked.")
-                    elif "gate" in page.url or "over18" in page.url:
-                        print("DEBUG: Stuck at age gate?")
-                
-                for post in posts[:limit]:
+            for base_url in mirrors:
+                try:
+                    print(f"Attempting valid mirror: {base_url}...")
+                    url = f"{base_url}/r/{subreddit_name}/new/"
+                    
                     try:
-                        title = post.locator("a.title").first.inner_text()
-                        link = post.locator("a.title").first.get_attribute("href")
+                        page.goto(url, timeout=20000)
+                    except:
+                        print(f"Timeout/Error visiting {base_url}")
+                        continue
+
+                    # Check for 403/Block
+                    title = page.title()
+                    if "Blocked" in title or "Too Many Requests" in title or "403" in title:
+                        print(f"Mirror {base_url} blocked.")
+                        continue
                         
-                        # Handle relative links
-                        if link.startswith("/"):
-                            link = "https://old.reddit.com" + link
+                    # Check for 18+ gate
+                    if "over18" in page.url:
+                        try:
+                             # Try clicking generic "yes" buttons usually found on these frontends
+                             page.click("text=Yes", timeout=2000) 
+                        except:
+                            pass
+                        page.wait_for_load_state("networkidle")
+
+                    # Selectors for Libreddit/Redlib are different from old.reddit
+                    # They usually just have post titles in <a> tags
+                    
+                    if "old.reddit" in base_url:
+                        posts = page.locator("#siteTable .thing.link").all()
+                    else:
+                        # Generic selector for Redlib instances
+                        # usually .post_title or inside a feed div
+                        posts = page.locator(".post_title").all()
+                        if not posts:
+                             # Fallback for other themes
+                             posts = page.locator("a[href^='/r/']").all()
+
+                    print(f"Found {len(posts)} posts on {base_url}")
+                    
+                    if len(posts) > 0:
+                        count = 0
+                        for post in posts:
+                            try:
+                                title_text = post.inner_text().strip()
+                                href = post.get_attribute("href")
+                                
+                                # Skip invalid or empty results
+                                if not title_text or not href:
+                                    continue
+                                
+                                # Fix relative URL
+                                if href.startswith("/"):
+                                    full_url = base_url + href
+                                else:
+                                    full_url = href
+
+                                if "scholarship" in title_text.lower() or "grant" in title_text.lower() or "fund" in title_text.lower():
+                                    scholarship = Scholarship(
+                                        title=f"Reddit: {title_text}",
+                                        source_url=full_url,
+                                        description=title_text,
+                                        amount=None,
+                                        platform="reddit",
+                                        date_posted=datetime.now()
+                                    )
+                                    scholarships.append(scholarship)
+                                    count += 1
+                                    if count >= limit:
+                                        break
+                            except:
+                                continue
+                        
+                        if scholarships:
+                            print(f"Successfully scraped {len(scholarships)} from {base_url}")
+                            break # Found data, stop iterating mirrors
                             
-                        # Extract date
-                        time_element = post.locator("time").first
-                        date_posted = datetime.now() # Fallback
-                        if time_element.count() > 0:
-                            timestamp = time_element.get_attribute("datetime")
-                            # Simple parse if needed, or just use now
-                        
-                        # Heuristic: Filter for scholarship-like titles
-                        if "scholarship" in title.lower() or "grant" in title.lower() or "fund" in title.lower():
-                             scholarship = Scholarship(
-                                title=f"Reddit: {title}",
-                                source_url=link,
-                                description=title, # Reddit titles are descriptive
-                                amount=None, # Hard to extract reliable amount from title
-                                platform="reddit",
-                                date_posted=date_posted
-                            )
-                             scholarships.append(scholarship)
-                    except Exception as e:
-                        print(f"Error parsing post: {e}")
-                        
-            except Exception as e:
-                print(f"Failed to scrape r/{subreddit_name}: {e}")
+                except Exception as e:
+                     print(f"Error on mirror {base_url}: {e}")
             
             browser.close()
+            
+        return scholarships
             
         print(f"Extracted {len(scholarships)} scholarships from r/{subreddit_name}")
         return scholarships
