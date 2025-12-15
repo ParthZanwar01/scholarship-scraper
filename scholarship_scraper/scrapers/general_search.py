@@ -48,10 +48,10 @@ class GeneralSearchScraper:
             
             except Exception as e:
                 print(f"DuckDuckGo search failed ({e}), failing over to Bing...")
-                try:
-                    found_urls = self.search_bing_fallback(page, query, num_results)
-                except:
-                    print("Bing also failed. Failing over to Direct Sites...")
+                found_urls = self.search_bing_fallback(page, query, num_results)
+                
+                if not found_urls:
+                    print("Bing returned no results. Failing over to Direct Sites...")
                     found_urls = self.search_direct_fallback(page)
             
             print(f"Found {len(found_urls)} URLs.")
