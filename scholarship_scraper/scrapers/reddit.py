@@ -5,9 +5,9 @@ from scholarship_scraper.models.scholarship import Scholarship
 import asyncio
 
 class RedditScraper:
-    def __init__(self, client_id=None, client_secret=None, user_agent="Mozilla/5.0"):
+    def __init__(self, client_id=None, client_secret=None, user_agent="Mozilla/5.0", headless=True):
         # We ignore client_id/secret as we are using web scraping now
-        self.headless = True
+        self.headless = headless
 
     def scrape_subreddit(self, subreddit_name="scholarships", limit=10):
         print(f"Scraping r/{subreddit_name} via old.reddit.com...")
@@ -31,6 +31,16 @@ class RedditScraper:
                 posts = page.locator("#siteTable .thing.link").all()
                 
                 print(f"Found {len(posts)} posts on r/{subreddit_name}")
+
+                if not posts:
+                    print(f"DEBUG: Title: {page.title()}")
+                    print(f"DEBUG: URL: {page.url}")
+                    # print(f"DEBUG: Content excerpt: {page.content()[:500]}") # Too noisy for logs? Maybe just title is enough.
+                    content = page.content()
+                    if "Blocked" in content or "Too Many Requests" in content:
+                        print("DEBUG: Potentially blocked.")
+                    elif "gate" in page.url or "over18" in page.url:
+                        print("DEBUG: Stuck at age gate?")
                 
                 for post in posts[:limit]:
                     try:
@@ -72,8 +82,6 @@ class RedditScraper:
 
 if __name__ == "__main__":
     # Test
-    async def main():
-        scraper = RedditScraper()
-        res = await scraper.scrape_subreddit()
-        print(res)
-    asyncio.run(main())
+    scraper = RedditScraper(headless=False)
+    res = scraper.scrape_subreddit()
+    print(res)
