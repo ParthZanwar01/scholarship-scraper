@@ -44,6 +44,12 @@ def trigger_reddit_scrape(limit: int = 20):
     task = run_reddit_scrape.delay(limit=limit)
     return {"message": "Reddit scrape triggered (Multi-Subreddit)", "task_id": str(task.id)}
 
+@app.post("/enrich")
+def trigger_enrichment(limit: int = 5):
+    from scholarship_scraper.app.tasks import run_enrichment_task
+    task = run_enrichment_task.delay(limit)
+    return {"message": "Deep research (Enrichment) triggered", "task_id": str(task.id)}
+
 @app.delete("/scrape/reddit")
 def clear_reddit_data():
     from scholarship_scraper.app.database import SessionLocal
