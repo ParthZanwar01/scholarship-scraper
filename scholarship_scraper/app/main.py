@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from .models import ScholarshipModel
-from .tasks import run_general_scrape, run_instagram_scrape, celery_app
+from .tasks import run_general_scrape, run_instagram_scrape, run_reddit_scrape, celery_app
 
 # Create DB tables
 Base.metadata.create_all(bind=engine)
@@ -37,3 +37,8 @@ def trigger_general_scrape(query: str = "scholarships", limit: int = 5):
 def trigger_instagram_scrape(hashtag: str = "scholarships", limit: int = 5):
     task = run_instagram_scrape.delay(hashtag, limit)
     return {"message": "Instagram scrape triggered", "task_id": str(task.id)}
+
+@app.post("/scrape/reddit")
+def trigger_reddit_scrape(subreddit: str = "scholarships", limit: int = 5):
+    task = run_reddit_scrape.delay(subreddit, limit)
+    return {"message": "Reddit scrape triggered", "task_id": str(task.id)}
