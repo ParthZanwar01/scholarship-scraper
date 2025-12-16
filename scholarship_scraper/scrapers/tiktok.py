@@ -19,12 +19,18 @@ from scholarship_scraper.models.scholarship import Scholarship
 # Lazy imports for heavy dependencies
 whisper = None
 yt_dlp = None
+WHISPER_AVAILABLE = True
 
 def load_whisper():
-    global whisper
-    if whisper is None:
-        import whisper as w
-        whisper = w
+    global whisper, WHISPER_AVAILABLE
+    if whisper is None and WHISPER_AVAILABLE:
+        try:
+            import whisper as w
+            whisper = w
+        except ImportError:
+            WHISPER_AVAILABLE = False
+            print("Whisper not available. Transcription disabled.")
+            return None
     return whisper
 
 def load_ytdlp():
@@ -142,13 +148,21 @@ class TikTokScraper:
     def transcribe_video(self, video_path: str) -> str:
         """
         Transcribe audio from a video file using Whisper.
+        Returns empty string if Whisper is not available.
         """
         if not video_path or not os.path.exists(video_path):
+            return ""
+        
+        # Check if Whisper is available
+        if not WHISPER_AVAILABLE:
+            print("Skipping transcription (Whisper not installed)")
             return ""
         
         print(f"Transcribing: {video_path}")
         
         model = self._load_whisper_model()
+        if model is None:
+            return ""
         
         try:
             # Whisper can work directly with video files

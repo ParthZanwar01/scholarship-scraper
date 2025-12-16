@@ -16,5 +16,4 @@ redis
 python-dotenv
 asyncpraw
 yt-dlp
-openai-whisper
 python-dateutil
