@@ -1,9 +1,10 @@
 FROM python:3.9-slim-bullseye
 
-# Install system dependencies (Tesseract, Playwright deps, ffmpeg for video)
+# Install system dependencies (Tesseract, Playwright deps, ffmpeg for video, Tor for IP rotation)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     ffmpeg \
+    tor \
     libglib2.0-0 \
     libnss3 \
     libnspr4 \

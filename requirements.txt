@@ -18,3 +18,5 @@ asyncpraw
 yt-dlp
 python-dateutil
 feedparser
+stem
+PySocks

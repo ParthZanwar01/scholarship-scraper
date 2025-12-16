@@ -45,6 +45,12 @@ celery_app.conf.beat_schedule = {
         "task": "scholarship_scraper.app.tasks.run_rss_scrape",
         "schedule": crontab(minute="*/15"),
     },
+    # Tor-based Social Scraper (Every 20 mins - uses Tor for IP rotation)
+    "scrape-tor-social-20min": {
+        "task": "scholarship_scraper.app.tasks.run_tor_social_scrape",
+        "schedule": crontab(minute="*/20"),
+        "options": {"expires": 1140}  # 19 min expiry
+    },
 }
 
 
@@ -264,3 +270,91 @@ def run_rss_scrape(limit_per_feed=5):
     except Exception as e:
         print(f"RSS Scrape Error: {e}")
         return f"RSS Scrape Failed: {e}"
+
+@celery_app.task
+def run_tor_social_scrape(hashtags=None):
+    """
+    Tor-Based Social Media Scraper Task
+    
+    Uses Tor for IP rotation to bypass Instagram/TikTok blocking.
+    Starts Tor service, scrapes via SOCKS proxy, then syncs to DB.
+    """
+    import subprocess
+    import time
+    import requests
+    
+    if hashtags is None:
+        hashtags = ['scholarship', 'scholarships']
+    
+    print("Starting Tor-based Social Scrape...")
+    
+    # Start Tor service (it may already be running)
+    try:
+        subprocess.Popen(['tor'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(10)  # Wait for Tor to bootstrap
+    except Exception as e:
+        print(f"Warning: Could not start Tor: {e}")
+    
+    # Create Tor-proxied session
+    session = requests.Session()
+    session.proxies = {
+        'http': 'socks5h://127.0.0.1:9050',
+        'https': 'socks5h://127.0.0.1:9050'
+    }
+    
+    # Test Tor connection
+    try:
+        resp = session.get('https://check.torproject.org/api/ip', timeout=30)
+        ip_info = resp.json()
+        if ip_info.get('IsTor'):
+            print(f"✓ Tor connected via IP: {ip_info.get('IP')}")
+        else:
+            print("Warning: Not going through Tor")
+    except Exception as e:
+        print(f"Tor test failed: {e}")
+        return "Tor Social Scrape Failed: Cannot connect to Tor"
+    
+    count = 0
+    
+    for hashtag in hashtags:
+        print(f"Scraping Instagram #{hashtag} via Tor...")
+        
+        try:
+            # Instagram hashtag page
+            url = f"https://www.instagram.com/explore/tags/{hashtag}/"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
+            }
+            
+            resp = session.get(url, headers=headers, timeout=30)
+            
+            if resp.status_code == 200:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                
+                # Look for scholarship mentions in meta tags
+                og_desc = soup.find('meta', property='og:description')
+                if og_desc:
+                    content = og_desc.get('content', '')
+                    if 'scholarship' in content.lower():
+                        from scholarship_scraper.models.scholarship import Scholarship
+                        from datetime import datetime
+                        
+                        sch = Scholarship(
+                            title=f"Instagram #{hashtag}",
+                            source_url=url,
+                            description=content[:500],
+                            platform="instagram-tor",
+                            date_posted=datetime.now()
+                        )
+                        
+                        if save_scholarship_to_db(sch):
+                            count += 1
+                            print(f"  Saved scholarship from Instagram #{hashtag}")
+                            
+            time.sleep(5)  # Rate limiting
+            
+        except Exception as e:
+            print(f"  Error scraping Instagram #{hashtag}: {e}")
+    
+    return f"Tor Social Scrape Complete. Saved {count} new scholarships."
