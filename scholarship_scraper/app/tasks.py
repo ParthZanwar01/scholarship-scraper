@@ -87,7 +87,12 @@ def run_general_scrape(query=None, limit=10):
         "financial aid grants",
         "computer science scholarships",
         "scholarships for high school seniors",
-        "undergraduate scholarships"
+        "undergraduate scholarships",
+        # Social Media X-Ray Queries
+        'site:linkedin.com/jobs "scholarship application"',
+        'site:tiktok.com "scholarship deadline"',
+        'site:facebook.com "scholarship opportunity"',
+        'site:instagram.com "scholarship link in bio"'
     ]
     
     if not query:
