@@ -1,72 +1,169 @@
+"""
+SCHOLARSHIP SCRAPER - HYBRID LOCAL AGENT
+
+This script runs on your local machine (home network) to scrape platforms
+that block cloud server IPs:
+- Instagram: Uses Instaloader with your credentials
+- TikTok: Uses yt-dlp + Whisper for video transcription
+
+All found scholarships are synced to your cloud database.
+"""
+
 import os
+import sys
 import requests
 import time
-from scholarship_scraper.scrapers.instagram import InstagramScraper
 from datetime import datetime
 
 # Configuration
-# NOTE: Using credentials provided by user for local execution.
-USERNAME = os.getenv("INSTAGRAM_USERNAME", "parthzanwar112@gmail.com") 
-PASSWORD = os.getenv("INSTAGRAM_PASSWORD", "Parthtanish00!")
-API_URL = "http://64.23.231.89:8000/scholarships/"
+API_URL = os.getenv("API_URL", "http://64.23.231.89:8000/scholarships/")
+INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME", "parthzanwar112@gmail.com")
+INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD", "Parthtanish00!")
 
-def sync_to_cloud(scholarship):
+def sync_to_cloud(scholarship, platform="unknown"):
     """Sends a found scholarship to the cloud database."""
     payload = {
         "title": scholarship.title,
         "source_url": scholarship.source_url,
-        "description": scholarship.description,
+        "description": scholarship.description or "",
         "amount": scholarship.amount,
         "deadline": scholarship.deadline.isoformat() if scholarship.deadline else None,
-        "platform": "instagram"
+        "platform": platform
     }
     
     try:
-        print(f"  -> Syncing {scholarship.source_url} to Cloud...")
-        # Note: The API expects scholarship data. Since the POST /scholarships endpoint 
-        # might require a specific schema, we should align with it.
-        # However, for simplicity, we can also use the /enrich endpoint or just insert directly if we had DB access.
-        # But we don't have remote DB access. We have API access.
-        # Let's assume there is a POST /scholarships endpoint (standard CRUD).
-        # We need to make sure the schema matches ScholarshipCreate.
-        
-        response = requests.post(API_URL, json=payload)
+        response = requests.post(API_URL, json=payload, timeout=10)
         if response.status_code in [200, 201]:
-            print("  [SUCCESS] Synced!")
+            print(f"  ✓ Synced: {scholarship.title[:40]}...")
             return True
         else:
-            print(f"  [FAILED] Cloud rejected: {response.status_code} - {response.text}")
+            print(f"  ✗ Failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"  [ERROR] Sync failed: {e}")
+        print(f"  ✗ Error: {e}")
         return False
 
-def run_agent():
-    print("------------------------------------------------")
-    print("   SCHOLARSHIP SCRAPER - HYBRID LOCAL AGENT     ")
-    print("------------------------------------------------")
-    print(f"Running on Local Machine (Home IP)")
-    print(f"Target: Instagram #scholarships")
-    print(f"Sync Target: {API_URL}")
-    print("------------------------------------------------")
+
+def run_instagram_scrape():
+    """Scrape Instagram using Instaloader (requires home IP)."""
+    print("\n" + "="*60)
+    print("INSTAGRAM SCRAPER")
+    print("="*60)
     
-    scraper = InstagramScraper(username=USERNAME, password=PASSWORD, headless=True)
+    try:
+        from scholarship_scraper.scrapers.instagram import InstagramScraper
+    except ImportError:
+        print("Instagram scraper not available. Install instaloader.")
+        return 0
     
-    # We will loop continuously or just run once?
-    # For now, let's run a batch of 10.
-    print("Starting Scrape...")
+    print(f"Username: {INSTAGRAM_USERNAME}")
+    print(f"Target: #scholarships")
+    print("-"*60)
+    
+    scraper = InstagramScraper(
+        username=INSTAGRAM_USERNAME,
+        password=INSTAGRAM_PASSWORD,
+        headless=True
+    )
+    
     results = scraper.scrape_hashtag("scholarships", num_posts=10)
+    print(f"\nFound {len(results)} posts from Instagram.")
     
-    print(f"\nFound {len(results)} posts. Starting Sync...")
-    
-    synced_count = 0
+    synced = 0
     for sch in results:
-        if sync_to_cloud(sch):
-            synced_count += 1
-            
-    print("------------------------------------------------")
-    print(f"Job Complete. Synced {synced_count}/{len(results)} scholarships to the cloud.")
-    print("------------------------------------------------")
+        if sync_to_cloud(sch, "instagram"):
+            synced += 1
+    
+    return synced
+
+
+def run_tiktok_scrape():
+    """Scrape TikTok videos and transcribe them using Whisper."""
+    print("\n" + "="*60)
+    print("TIKTOK VIDEO SCRAPER (with Whisper Transcription)")
+    print("="*60)
+    
+    try:
+        from scholarship_scraper.scrapers.tiktok import TikTokScraper
+    except ImportError:
+        print("TikTok scraper not available. Install yt-dlp.")
+        return 0
+    
+    # Check if Whisper is available
+    try:
+        import whisper
+        whisper_model = "base"  # Better quality for local
+        print(f"Whisper: ✓ Available (using '{whisper_model}' model)")
+    except ImportError:
+        whisper_model = "tiny"
+        print("Whisper: Not installed. Transcription will be skipped.")
+    
+    print(f"Target: #scholarship")
+    print("-"*60)
+    
+    scraper = TikTokScraper(whisper_model=whisper_model)
+    results = scraper.scrape("scholarship", num_videos=5)
+    
+    print(f"\nFound {len(results)} scholarships from TikTok videos.")
+    
+    synced = 0
+    for sch in results:
+        if sync_to_cloud(sch, "tiktok"):
+            synced += 1
+    
+    return synced
+
+
+def main():
+    print("="*60)
+    print("SCHOLARSHIP SCRAPER - LOCAL AGENT")
+    print("="*60)
+    print(f"Running from: Local Machine (Home IP)")
+    print(f"Cloud API: {API_URL}")
+    print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Test cloud connection
+    try:
+        r = requests.get(API_URL.replace("/scholarships/", "/"), timeout=5)
+        if r.status_code == 200:
+            print(f"Cloud Status: ✓ Connected")
+        else:
+            print(f"Cloud Status: ✗ Error {r.status_code}")
+            return
+    except Exception as e:
+        print(f"Cloud Status: ✗ Cannot connect - {e}")
+        return
+    
+    total_synced = 0
+    
+    # Choose what to scrape
+    print("\nWhat would you like to scrape?")
+    print("1. Instagram only")
+    print("2. TikTok only (with video transcription)")
+    print("3. Both Instagram and TikTok")
+    print("4. Exit")
+    
+    choice = input("\nEnter choice (1-4): ").strip()
+    
+    if choice == "1":
+        total_synced += run_instagram_scrape()
+    elif choice == "2":
+        total_synced += run_tiktok_scrape()
+    elif choice == "3":
+        total_synced += run_instagram_scrape()
+        total_synced += run_tiktok_scrape()
+    elif choice == "4":
+        print("Exiting...")
+        return
+    else:
+        print("Invalid choice. Running both...")
+        total_synced += run_instagram_scrape()
+        total_synced += run_tiktok_scrape()
+    
+    print("\n" + "="*60)
+    print(f"COMPLETE! Synced {total_synced} total scholarships to cloud.")
+    print("="*60)
+
 
 if __name__ == "__main__":
-    run_agent()
+    main()

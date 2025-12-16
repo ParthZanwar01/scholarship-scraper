@@ -40,6 +40,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/30"),
         "options": {"expires": 1740}  # 29 min expiry
     },
+    # RSS Feed Scraper (Every 15 mins - reliable and lightweight)
+    "scrape-rss-15min": {
+        "task": "scholarship_scraper.app.tasks.run_rss_scrape",
+        "schedule": crontab(minute="*/15"),
+    },
 }
 
 
@@ -232,3 +237,30 @@ def run_tiktok_scrape(hashtag="scholarship", limit=3):
     except Exception as e:
         print(f"TikTok Scrape Error: {e}")
         return f"TikTok Scrape Failed: {e}"
+
+@celery_app.task
+def run_rss_scrape(limit_per_feed=5):
+    """
+    RSS Feed Scraper Task
+    
+    Scrapes scholarship RSS feeds from known sources.
+    Most reliable and least likely to be blocked.
+    """
+    from scholarship_scraper.scrapers.rss_feeds import RSSScholarshipScraper
+    
+    print("Starting RSS Feed Scrape")
+    
+    try:
+        scraper = RSSScholarshipScraper()
+        results = scraper.scrape_all(limit_per_feed=limit_per_feed)
+        
+        count = 0
+        for item in results:
+            if save_scholarship_to_db(item):
+                count += 1
+        
+        return f"RSS Scrape Complete. Saved {count} new scholarships from {len(results)} feed items."
+        
+    except Exception as e:
+        print(f"RSS Scrape Error: {e}")
+        return f"RSS Scrape Failed: {e}"
