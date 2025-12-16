@@ -50,6 +50,27 @@ def trigger_enrichment(limit: int = 5):
     task = run_enrichment_task.delay(limit)
     return {"message": "Deep research (Enrichment) triggered", "task_id": str(task.id)}
 
+@app.post("/scholarships/")
+def create_scholarship(item: dict, db: Session = Depends(get_db)):
+    # Simple create/deduplicate logic
+    exists = db.query(ScholarshipModel).filter(ScholarshipModel.source_url == item.get("source_url")).first()
+    if exists:
+        return {"message": "Scholarship already exists", "id": exists.id}
+    
+    new_sch = ScholarshipModel(
+        title=item.get("title"),
+        source_url=item.get("source_url"),
+        description=item.get("description"),
+        amount=item.get("amount"),
+        deadline=item.get("deadline"), # Pass string, DB handles datetime conv if needed, or valid iso
+        platform=item.get("platform", "external"),
+        raw_text=item.get("description")
+    )
+    db.add(new_sch)
+    db.commit()
+    db.refresh(new_sch)
+    return {"message": "Scholarship created", "id": new_sch.id}
+
 @app.delete("/scrape/reddit")
 def clear_reddit_data():
     from scholarship_scraper.app.database import SessionLocal
