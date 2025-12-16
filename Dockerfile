@@ -1,8 +1,9 @@
 FROM python:3.9-slim-bullseye
 
-# Install system dependencies (Tesseract, Playwright deps)
+# Install system dependencies (Tesseract, Playwright deps, ffmpeg for video)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
+    ffmpeg \
     libglib2.0-0 \
     libnss3 \
     libnspr4 \

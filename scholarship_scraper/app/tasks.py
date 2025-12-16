@@ -34,6 +34,12 @@ celery_app.conf.beat_schedule = {
         "task": "scholarship_scraper.app.tasks.run_instagram_scrape",
         "schedule": crontab(minute=15, hour="*/1"),
     },
+    # TikTok Video Scraper (Every 30 mins - heavy due to transcription)
+    "scrape-tiktok-30min": {
+        "task": "scholarship_scraper.app.tasks.run_tiktok_scrape",
+        "schedule": crontab(minute="*/30"),
+        "options": {"expires": 1740}  # 29 min expiry
+    },
 }
 
 
@@ -199,3 +205,30 @@ def run_enrichment_task(limit=5):
     finally:
         db.close()
 
+@celery_app.task
+def run_tiktok_scrape(hashtag="scholarship", limit=3):
+    """
+    TikTok Video Scraper Task
+    
+    Downloads TikTok videos, transcribes audio using Whisper,
+    and extracts scholarship information.
+    """
+    from scholarship_scraper.scrapers.tiktok import TikTokScraper
+    
+    print(f"Starting TikTok Scrape: #{hashtag}")
+    
+    try:
+        # Use tiny model on cloud for speed (base is more accurate but slower)
+        scraper = TikTokScraper(whisper_model="tiny")
+        results = scraper.scrape(hashtag, num_videos=limit)
+        
+        count = 0
+        for item in results:
+            if save_scholarship_to_db(item):
+                count += 1
+        
+        return f"TikTok Scrape Complete. Saved {count} new scholarships from {len(results)} videos."
+        
+    except Exception as e:
+        print(f"TikTok Scrape Error: {e}")
+        return f"TikTok Scrape Failed: {e}"

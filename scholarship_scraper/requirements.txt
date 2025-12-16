@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+python-dotenv
+celery[redis]
+instaloader
+requests
+playwright
+beautifulsoup4
+lxml
+python-dateutil
+yt-dlp
+openai-whisper

@@ -50,6 +50,12 @@ def trigger_enrichment(limit: int = 5):
     task = run_enrichment_task.delay(limit)
     return {"message": "Deep research (Enrichment) triggered", "task_id": str(task.id)}
 
+@app.post("/scrape/tiktok")
+def trigger_tiktok_scrape(hashtag: str = "scholarship", limit: int = 3):
+    from scholarship_scraper.app.tasks import run_tiktok_scrape
+    task = run_tiktok_scrape.delay(hashtag, limit)
+    return {"message": "TikTok video scrape triggered", "task_id": str(task.id)}
+
 @app.post("/scholarships/")
 def create_scholarship(item: dict, db: Session = Depends(get_db)):
     # Simple create/deduplicate logic
