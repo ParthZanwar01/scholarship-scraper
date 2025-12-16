@@ -36,21 +36,44 @@ class EnrichmentProcessor:
         return None
 
     def extract_deadline(self, text):
-        # Look for date patterns near keywords like "Deadline", "Due"
-        # This is a heuristic.
+        # Look for date patterns near keywords like "Deadline", "Due", "Ends", "Closes"
+        keywords = ["deadline", "due date", "closes", "ends", "application period", "expires"]
+        
+        # Regex for common date formats:
+        # 1. Month DD, YYYY (January 1, 2025 or Jan 1 2025)
+        # 2. MM/DD/YYYY or MM.DD.YYYY
+        date_regex = r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}'
+        date_regex_short = r'\d{1,2}[/-]\d{1,2}[/-]\d{4}'
+        
         lines = text.split('\n')
         for i, line in enumerate(lines):
-            if "deadline" in line.lower() or "due date" in line.lower():
-                # Try to fuzzy parse the whole line or next line
-                try:
-                    # simplistic extraction: look for date strings in this line
-                    # Using dateutil to fuzzy parse
-                    # We pick a substring to avoid parsing garbage
-                    snippet = line + " " + (lines[i+1] if i+1 < len(lines) else "")
-                    dt = parser.parse(snippet, fuzzy=True)
-                    return dt
-                except:
-                    pass
+            line_lower = line.lower()
+            if any(k in line_lower for k in keywords):
+                # Search for dates in this line or the immediate next ones
+                snippet = line + " " + (lines[i+1] if i+1 < len(lines) else "")
+                
+                # Regex search first (more reliable)
+                match = re.search(date_regex, snippet, re.IGNORECASE)
+                if match:
+                    try:
+                         return parser.parse(match.group(0))
+                    except:
+                        pass
+                        
+                match_short = re.search(date_regex_short, snippet)
+                if match_short:
+                    try:
+                        return parser.parse(match_short.group(0))
+                    except:
+                        pass
+                
+                # Fallback to fuzzy parsing of the snippet if it's short enough
+                if len(snippet) < 100:
+                    try:
+                        # Exclude the keyword itself to avoid confusion? No, parser handles it.
+                        return parser.parse(snippet, fuzzy=True)
+                    except:
+                        pass
         return None
 
     def enrich_url(self, url):
