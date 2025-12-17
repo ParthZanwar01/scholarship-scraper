@@ -226,7 +226,10 @@ class MediaProcessor:
         """
         Parse extracted text for scholarship information.
         
-        Returns dict with extracted fields.
+        Integrates URL filtering and AI classification to ensure we only
+        save direct scholarship applications, not articles.
+        
+        Returns dict with extracted fields, or None if filtered out.
         """
         if not text or len(text) < 20:
             return None
@@ -267,8 +270,34 @@ class MediaProcessor:
                 deadline = match.group(1) if match.lastindex else match.group()
                 break
         
-        # Extract URLs
+        # Extract URLs from text
         urls = re.findall(r'https?://[^\s]+', text)
+        
+        # --- URL FILTERING ---
+        # Filter out article URLs and find the best scholarship link
+        try:
+            from .url_filter import filter_url, get_best_scholarship_url
+            
+            # Get best URL (prioritizes application links over articles)
+            best_url = get_best_scholarship_url(urls)
+            
+            # Filter the URL list to only valid ones
+            filtered_urls = [u for u in urls if filter_url(u)[0]]
+            
+            # Use best_url if found, otherwise fall back to source
+            final_url = best_url or source_url
+            
+            # Quick check: if source_url is an article, skip entirely
+            if source_url and not best_url:
+                is_valid, reason = filter_url(source_url)
+                if not is_valid and 'blocked' in reason.lower():
+                    print(f"  ⚠ Filtered out article URL: {source_url[:50]}...")
+                    return None
+                    
+        except ImportError:
+            # Fallback if url_filter not available
+            filtered_urls = urls[:5]
+            final_url = source_url
         
         # Create title from first meaningful line
         lines = [l.strip() for l in text.split('\n') if l.strip()]
@@ -279,8 +308,8 @@ class MediaProcessor:
             'description': text[:500],
             'amount': amount,
             'deadline': deadline,
-            'source_url': source_url,
-            'urls_found': urls[:5],
+            'source_url': final_url,
+            'urls_found': filtered_urls[:5],
         }
     
     def process_media_batch(self, media_items: list) -> list:

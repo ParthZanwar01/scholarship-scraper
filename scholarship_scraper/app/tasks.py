@@ -17,7 +17,7 @@ celery_app.conf.beat_schedule = {
     "scrape-general-5min": {
         "task": "scholarship_scraper.app.tasks.run_general_scrape",
         "schedule": crontab(minute="*/5"),
-        "options": {"expires": 290} # Expire if queue is backed up
+        "options": {"expires": 290}
     },
     "scrape-reddit-5min": {
         "task": "scholarship_scraper.app.tasks.run_reddit_scrape",
@@ -29,27 +29,34 @@ celery_app.conf.beat_schedule = {
         "task": "scholarship_scraper.app.tasks.run_enrichment_task",
         "schedule": crontab(minute="*/10"),
     },
-    # Keep Instagram less frequent as it is fragile/security-heavy
-    "scrape-instagram-hourly": {
-        "task": "scholarship_scraper.app.tasks.run_instagram_scrape",
-        "schedule": crontab(minute=15, hour="*/1"),
+    # Enhanced Instagram Scraper with OCR + AI (Every 15 mins)
+    "scrape-instagram-enhanced-15min": {
+        "task": "scholarship_scraper.app.tasks.run_instagram_enhanced_scrape",
+        "schedule": crontab(minute="*/15"),
+        "options": {"expires": 840}
     },
-    # TikTok Video Scraper (Every 30 mins - heavy due to transcription)
-    "scrape-tiktok-30min": {
-        "task": "scholarship_scraper.app.tasks.run_tiktok_scrape",
-        "schedule": crontab(minute="*/30"),
-        "options": {"expires": 1740}  # 29 min expiry
+    # Enhanced Facebook Scraper with OCR + AI (Every 20 mins)
+    "scrape-facebook-enhanced-20min": {
+        "task": "scholarship_scraper.app.tasks.run_facebook_enhanced_scrape",
+        "schedule": crontab(minute="*/20"),
+        "options": {"expires": 1140}
+    },
+    # Enhanced TikTok Scraper with Transcription + AI (Every 25 mins)
+    "scrape-tiktok-enhanced-25min": {
+        "task": "scholarship_scraper.app.tasks.run_tiktok_enhanced_scrape",
+        "schedule": crontab(minute="*/25"),
+        "options": {"expires": 1440}
     },
     # RSS Feed Scraper (Every 15 mins - reliable and lightweight)
     "scrape-rss-15min": {
         "task": "scholarship_scraper.app.tasks.run_rss_scrape",
         "schedule": crontab(minute="*/15"),
     },
-    # Tor-based Social Scraper (Every 20 mins - uses Tor for IP rotation)
-    "scrape-tor-social-20min": {
+    # Tor-based Social Scraper (Every 30 mins - uses Tor for IP rotation)
+    "scrape-tor-social-30min": {
         "task": "scholarship_scraper.app.tasks.run_tor_social_scrape",
-        "schedule": crontab(minute="*/20"),
-        "options": {"expires": 1140}  # 19 min expiry
+        "schedule": crontab(minute="*/30"),
+        "options": {"expires": 1740}
     },
 }
 
@@ -142,6 +149,110 @@ def run_instagram_scrape(hashtag="scholarships", limit=5):
             count += 1
             
     return f"Instagram Scrape Complete. Saved {count} new scholarships."
+
+
+@celery_app.task
+def run_instagram_enhanced_scrape(hashtags=None, max_posts_per_hashtag=10):
+    """
+    Enhanced Instagram Scraper Task
+    
+    Uses Picuki mirror to scrape Instagram posts:
+    1. Downloads post images
+    2. Runs OCR to extract text from images
+    3. Uses AI to find scholarship names and application links
+    4. Saves verified scholarships to database
+    """
+    import random
+    
+    if hashtags is None:
+        # Rotate through scholarship-related hashtags
+        all_hashtags = [
+            "scholarships", "scholarship", "scholarships2025",
+            "fullyFundedScholarships", "studyabroad", "financialaid",
+            "collegescholarships", "graduatescholarships"
+        ]
+        hashtags = random.sample(all_hashtags, min(3, len(all_hashtags)))
+    
+    print(f"Starting Enhanced Instagram Scrape: {hashtags}")
+    
+    try:
+        from scholarship_scraper.scrapers.instagram_enhanced import InstagramScholarshipScraper
+        
+        scraper = InstagramScholarshipScraper()
+        all_scholarships = []
+        
+        for hashtag in hashtags:
+            results = scraper.scrape_hashtag(hashtag, max_posts=max_posts_per_hashtag)
+            all_scholarships.extend(results)
+            
+            # Delay between hashtags
+            import time
+            time.sleep(random.uniform(3, 7))
+        
+        # Sync to database
+        synced = scraper.sync_to_database(all_scholarships)
+        
+        return f"Enhanced Instagram Scrape Complete. Found {len(all_scholarships)}, Saved {synced} new scholarships."
+        
+    except Exception as e:
+        print(f"Enhanced Instagram Scrape Error: {e}")
+        return f"Enhanced Instagram Scrape Failed: {e}"
+
+
+@celery_app.task
+def run_facebook_enhanced_scrape(max_posts_per_page=5):
+    """
+    Enhanced Facebook Scraper Task
+    
+    Same pipeline as Instagram:
+    1. Scrapes public scholarship Facebook pages via mbasic.facebook.com
+    2. Downloads post images and runs OCR
+    3. Uses AI to find scholarship names and apply links
+    4. Saves verified scholarships to database
+    """
+    print("Starting Enhanced Facebook Scrape...")
+    
+    try:
+        from scholarship_scraper.scrapers.facebook_enhanced import FacebookScholarshipScraper
+        
+        scraper = FacebookScholarshipScraper(use_tor=True)
+        scholarships = scraper.scrape_all_pages(max_posts_per_page=max_posts_per_page)
+        
+        synced = scraper.sync_to_database(scholarships)
+        
+        return f"Enhanced Facebook Scrape Complete. Found {len(scholarships)}, Saved {synced} new scholarships."
+        
+    except Exception as e:
+        print(f"Enhanced Facebook Scrape Error: {e}")
+        return f"Enhanced Facebook Scrape Failed: {e}"
+
+
+@celery_app.task
+def run_tiktok_enhanced_scrape(max_videos=3):
+    """
+    Enhanced TikTok Scraper Task
+    
+    Same pipeline as Instagram but for video:
+    1. Finds scholarship TikTok videos
+    2. Downloads and transcribes audio using Whisper
+    3. Uses AI to find scholarship names and apply links
+    4. Saves verified scholarships to database
+    """
+    print("Starting Enhanced TikTok Scrape...")
+    
+    try:
+        from scholarship_scraper.scrapers.tiktok_enhanced import TikTokScholarshipScraper
+        
+        scraper = TikTokScholarshipScraper(use_tor=True)
+        scholarships = scraper.scrape_all(max_videos_per_source=max_videos)
+        
+        synced = scraper.sync_to_database(scholarships)
+        
+        return f"Enhanced TikTok Scrape Complete. Found {len(scholarships)}, Saved {synced} new scholarships."
+        
+    except Exception as e:
+        print(f"Enhanced TikTok Scrape Error: {e}")
+        return f"Enhanced TikTok Scrape Failed: {e}"
 
 @celery_app.task
 def run_reddit_scrape(limit=20): # Increased limit and removed single subreddit arg

@@ -14,8 +14,9 @@ from scholarship_scraper.models.scholarship import Scholarship
 class RSSScholarshipScraper:
     """Scrapes scholarship information from RSS feeds."""
     
-    # Known scholarship RSS feeds
+    # Known scholarship RSS feeds - EXPANDED LIST
     FEEDS = [
+        # Major Scholarship Aggregators
         {
             "name": "Scholarships.com",
             "url": "https://www.scholarships.com/feed/",
@@ -27,6 +28,23 @@ class RSSScholarshipScraper:
             "keywords": ["scholarship", "financial aid"]
         },
         {
+            "name": "Scholarship America",
+            "url": "https://scholarshipamerica.org/feed/",
+            "keywords": ["scholarship", "student"]
+        },
+        {
+            "name": "Bold.org",
+            "url": "https://bold.org/blog/feed/",
+            "keywords": ["scholarship", "award", "apply"]
+        },
+        {
+            "name": "Niche",
+            "url": "https://www.niche.com/blog/feed/",
+            "keywords": ["scholarship", "college", "financial"]
+        },
+        
+        # International Scholarships
+        {
             "name": "GoOverseas",
             "url": "https://www.gooverseas.com/blog/feed",
             "keywords": ["scholarship", "study abroad", "funding"]
@@ -34,23 +52,133 @@ class RSSScholarshipScraper:
         {
             "name": "IIE",
             "url": "https://www.iie.org/feed/",
-            "keywords": ["scholarship", "fellowship", "grant"]
+            "keywords": ["scholarship", "fellowship", "grant", "fulbright"]
         },
         {
-            "name": "Scholarship America",
-            "url": "https://scholarshipamerica.org/feed/",
-            "keywords": ["scholarship", "student"]
+            "name": "StudyPortals",
+            "url": "https://www.studyportals.com/blog/feed/",
+            "keywords": ["scholarship", "study", "international"]
         },
+        {
+            "name": "TopUniversities",
+            "url": "https://www.topuniversities.com/rss/news.xml",
+            "keywords": ["scholarship", "funding", "study"]
+        },
+        {
+            "name": "DAAD",
+            "url": "https://www.daad.de/en/feeds/news/",
+            "keywords": ["scholarship", "germany", "funding"]
+        },
+        {
+            "name": "British Council",
+            "url": "https://www.britishcouncil.org/feed",
+            "keywords": ["scholarship", "uk", "study"]
+        },
+        {
+            "name": "Chevening",
+            "url": "https://www.chevening.org/feed/",
+            "keywords": ["scholarship", "chevening", "uk"]
+        },
+        
+        # Foundations & Organizations
         {
             "name": "JMO",
             "url": "https://www.jmof.org/feed/",
             "keywords": ["scholarship", "jack kent cooke"]
         },
         {
+            "name": "Gates Foundation",
+            "url": "https://www.gatesfoundation.org/ideas/feed",
+            "keywords": ["scholarship", "grant", "education"]
+        },
+        {
+            "name": "Rotary",
+            "url": "https://blog.rotary.org/feed/",
+            "keywords": ["scholarship", "peace", "global"]
+        },
+        {
+            "name": "AAUW",
+            "url": "https://www.aauw.org/feed/",
+            "keywords": ["scholarship", "fellowship", "women"]
+        },
+        {
+            "name": "Hispanic Scholarship Fund",
+            "url": "https://www.hsf.net/feed/",
+            "keywords": ["scholarship", "hispanic", "latino"]
+        },
+        {
+            "name": "UNCF",
+            "url": "https://uncf.org/feed/",
+            "keywords": ["scholarship", "hbcu", "minority"]
+        },
+        
+        # Graduate & Research
+        {
+            "name": "NSF",
+            "url": "https://www.nsf.gov/rss/funding_rss.xml",
+            "keywords": ["fellowship", "grant", "research"]
+        },
+        {
+            "name": "NIH",
+            "url": "https://grants.nih.gov/rss/funding.rss",
+            "keywords": ["fellowship", "training", "research"]
+        },
+        {
+            "name": "Ford Foundation",
+            "url": "https://www.fordfoundation.org/feed/",
+            "keywords": ["fellowship", "grant", "diversity"]
+        },
+        
+        # University Scholarship Offices
+        {
+            "name": "MIT Financial Aid",
+            "url": "https://sfs.mit.edu/feed/",
+            "keywords": ["scholarship", "financial aid", "mit"]
+        },
+        {
+            "name": "Stanford Scholarships",
+            "url": "https://financialaid.stanford.edu/feed/",
+            "keywords": ["scholarship", "aid", "stanford"]
+        },
+        
+        # STEM & Tech Scholarships
+        {
+            "name": "Google Education",
+            "url": "https://blog.google/outreach-initiatives/education/feed/",
+            "keywords": ["scholarship", "computer science", "tech"]
+        },
+        {
+            "name": "Microsoft",
+            "url": "https://blogs.microsoft.com/feed/",
+            "keywords": ["scholarship", "diversity", "tech"]
+        },
+        
+        # Other Major Sources
+        {
             "name": "Chegg",
             "url": "https://www.chegg.com/scholarships/rss",
             "keywords": ["scholarship", "college"]
-        }
+        },
+        {
+            "name": "College Board",
+            "url": "https://blog.collegeboard.org/rss.xml",
+            "keywords": ["scholarship", "financial aid", "college"]
+        },
+        {
+            "name": "Peterson's",
+            "url": "https://www.petersons.com/blog/feed/",
+            "keywords": ["scholarship", "graduate", "college"]
+        },
+        {
+            "name": "Unigo",
+            "url": "https://www.unigo.com/feed/",
+            "keywords": ["scholarship", "college", "award"]
+        },
+        {
+            "name": "Cappex",
+            "url": "https://www.cappex.com/blog/feed/",
+            "keywords": ["scholarship", "college", "financial"]
+        },
     ]
     
     def __init__(self):

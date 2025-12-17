@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, SortDesc } from 'lucide-react';
 import ScholarshipCard from './components/ScholarshipCard';
 
-// Using the LIVE DigitalOcean IP
-const API_URL = "http://64.23.231.89:8000";
+// API URL - uses /api proxy in production (Netlify), direct URL in development
+const API_URL = import.meta.env.PROD 
+  ? "/api"  // Production: proxy through Netlify to avoid mixed content
+  : "http://64.23.231.89:8000";  // Development: direct connection
 
 function App() {
   const [scholarships, setScholarships] = useState([]);
